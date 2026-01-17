@@ -7,38 +7,14 @@
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; padding: 20px; color: #1c1e21; }
         .container { max-width: 1000px; margin: 0 auto; }
-        
-        .header-box { 
-            background: #fff; padding: 25px; border-radius: 15px; 
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08); margin-bottom: 25px;
-        }
-
+        .header-box { background: #fff; padding: 25px; border-radius: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); margin-bottom: 25px; }
         .input-group { display: flex; gap: 10px; margin-top: 15px; }
-        
-        input { 
-            flex-grow: 1; padding: 12px; border-radius: 8px; 
-            border: 1px solid #ddd; font-size: 16px; outline: none;
-        }
-        
-        button { 
-            padding: 12px 25px; border-radius: 8px; border: none; 
-            background: #007bff; color: white; font-weight: bold; 
-            cursor: pointer; transition: background 0.2s;
-        }
+        input { flex-grow: 1; padding: 12px; border-radius: 8px; border: 1px solid #ddd; font-size: 16px; }
+        button { padding: 12px 25px; border-radius: 8px; border: none; background: #007bff; color: white; font-weight: bold; cursor: pointer; }
         button:hover { background: #0056b3; }
-
-        .gallery { 
-            display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); 
-            gap: 15px; 
-        }
-        
-        .media-item { 
-            background: #fff; border-radius: 10px; overflow: hidden; 
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1); 
-        }
-        
+        .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 15px; }
+        .media-item { background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
         img, video { width: 100%; aspect-ratio: 1/1; object-fit: cover; display: block; background: #000; }
-        
         .loader { text-align: center; padding: 40px; color: #666; font-size: 18px; }
         .error { color: #d93025; background: #f8d7da; padding: 15px; border-radius: 8px; margin-top: 15px; }
     </style>
@@ -48,20 +24,19 @@
 <div class="container">
     <div class="header-box">
         <h1>Просмотр альбома SWSH</h1>
-        <p>Вставьте ссылку на альбом (например, https://joinswsh.com/a/xyz123)</p>
+        <p>Вставьте ссылку: <strong>https://www.joinswsh.com/album/vblzrzpgm83r</strong></p>
         
         <div class="input-group">
-            <input type="text" id="albumUrl" placeholder="https://joinswsh.com/a/..." />
-            <button onclick="handleLoad()">Загрузить</button>
+            <input type="text" id="albumUrl" placeholder="Вставьте ссылку на альбом сюда" />
+            <button onclick="handleLoad()">Загрузить медиа</button>
         </div>
         <div id="status"></div>
     </div>
-
     <div id="gallery" class="gallery"></div>
 </div>
 
 <script>
-    // 1. ТВОЙ КЛЮЧ
+    // === ВСТАВЬ СВОЙ КЛЮЧ ТУТ ===
     const API_KEY = 'priv_5d07e1a9eaec9dcb_cc0d2877fbe8fdd176da63381603074c1f8ce3f5c639eacdb4d7c6d578a29982'; 
     const PROXY = 'https://corsproxy.io/?';
 
@@ -72,17 +47,17 @@
         
         status.innerHTML = '';
         
-        // Извлекаем ID из ссылки
-        // Ссылка может быть: https://joinswsh.com/a/abcdef
-        // Или просто: abcdef
-        const albumId = urlInput.includes('/') ? urlInput.split('/').pop() : urlInput;
+        // Улучшенная логика извлечения ID:
+        // Убираем слэш в конце, если он есть, и берем последний сегмент
+        const cleanUrl = urlInput.replace(/\/$/, ""); 
+        const albumId = cleanUrl.split('/').pop();
 
-        if (!albumId) {
-            status.innerHTML = '<div class="error">Введите корректную ссылку или ID</div>';
+        if (!albumId || albumId.length < 5) {
+            status.innerHTML = '<div class="error">Не удалось распознать ID альбома из ссылки.</div>';
             return;
         }
 
-        gallery.innerHTML = '<div class="loader">Связываюсь со спутником Swsh... 🚀</div>';
+        gallery.innerHTML = '<div class="loader">Загружаю медиа из ' + albumId + '...</div>';
 
         const targetUrl = `https://public-api.joinswsh.com/album/getPhotos?albumId=${albumId}`;
         
@@ -95,17 +70,16 @@
                 }
             });
 
+            const data = await response.json();
+
             if (!response.ok) {
-                if (response.status === 404) throw new Error("Альбом не найден (404). Проверь ссылку.");
-                if (response.status === 401) throw new Error("Ошибка API ключа (401).");
-                throw new Error(`Ошибка сервера: ${response.status}`);
+                throw new Error(data.message || `Ошибка сервера: ${response.status}`);
             }
 
-            const data = await response.json();
             const items = data.photos || [];
 
             if (items.length === 0) {
-                gallery.innerHTML = '<div class="loader">Альбом пуст 📭</div>';
+                gallery.innerHTML = '<div class="loader">В альбоме нет фотографий.</div>';
                 return;
             }
 
@@ -114,6 +88,7 @@
                 const div = document.createElement('div');
                 div.className = 'media-item';
 
+                // API Swsh отдает videoUrl для видеофайлов
                 if (item.videoUrl) {
                     div.innerHTML = `
                         <video controls poster="${item.stableUrl || item.originalUrl}">
@@ -126,8 +101,9 @@
             });
 
         } catch (err) {
-            status.innerHTML = `<div class="error">${err.message}</div>`;
+            status.innerHTML = `<div class="error">Ошибка: ${err.message}</div>`;
             gallery.innerHTML = '';
+            console.error("Full error details:", err);
         }
     }
 </script>
