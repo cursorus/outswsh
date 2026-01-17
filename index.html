@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>My Gallery</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <style>
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #0f0f0f;
+      color: #fff;
+    }
+
+    header {
+      padding: 16px;
+      display: flex;
+      gap: 8px;
+      background: #161616;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    input, button {
+      padding: 10px;
+      border-radius: 8px;
+      border: none;
+      outline: none;
+      font-size: 14px;
+    }
+
+    input {
+      flex: 1;
+    }
+
+    button {
+      cursor: pointer;
+      background: #3b82f6;
+      color: #fff;
+    }
+
+    main {
+      padding: 16px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 12px;
+    }
+
+    img, video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 10px;
+      background: #000;
+    }
+
+    video {
+      max-height: 300px;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <input id="albumId" placeholder="Album ID" />
+  <button onclick="loadAlbum()">Загрузить</button>
+</header>
+
+<main id="gallery"></main>
+
+<script>
+  const API_KEY = "priv_5d07e1a9eaec9dcb_cc0d2877fbe8fdd176da63381603074c1f8ce3f5c639eacdb4d7c6d578a29982";
+  const API_URL = "https://public-api.joinswsh.com/album/getPhotos";
+
+  async function loadAlbum() {
+    const albumId = document.getElementById("albumId").value.trim();
+    if (!albumId) {
+      alert("Введи albumId");
+      return;
+    }
+
+    const gallery = document.getElementById("gallery");
+    gallery.innerHTML = "";
+
+    try {
+      const res = await fetch(`${API_URL}?albumId=${albumId}`, {
+        headers: {
+          "x-api-key": API_KEY
+        }
+      });
+
+      const json = await res.json();
+      const items = json?.data || [];
+
+      if (!items.length) {
+        alert("Ничего не найдено");
+        return;
+      }
+
+      for (const item of items) {
+        // Видео
+        if (item.videoUrl) {
+          const video = document.createElement("video");
+          video.src = item.videoUrl;
+          video.controls = true;
+          video.preload = "metadata";
+          gallery.appendChild(video);
+          continue;
+        }
+
+        // Фото
+        const imgUrl = item.originalUrl || item.downloadUrl;
+        if (imgUrl) {
+          const img = document.createElement("img");
+          img.src = imgUrl;
+          img.loading = "lazy";
+          gallery.appendChild(img);
+        }
+      }
+
+    } catch (err) {
+      console.error(err);
+      alert("Ошибка загрузки");
+    }
+  }
+</script>
+
+</body>
+</html>
