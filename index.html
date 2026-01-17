@@ -3,154 +3,132 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SWSH Manager</title>
+    <title>SWSH Album Viewer</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #ececf1; padding: 20px; color: #333; }
-        .container { max-width: 1200px; margin: 0 auto; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; padding: 20px; color: #1c1e21; }
+        .container { max-width: 1000px; margin: 0 auto; }
         
-        /* Стили управления */
-        .controls { 
-            background: #fff; padding: 20px; border-radius: 12px; 
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 25px;
-            display: flex; align-items: center; gap: 15px;
+        .header-box { 
+            background: #fff; padding: 25px; border-radius: 15px; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08); margin-bottom: 25px;
         }
-        select { 
-            padding: 10px; border-radius: 8px; border: 1px solid #ddd; 
-            flex-grow: 1; font-size: 16px; outline: none;
+
+        .input-group { display: flex; gap: 10px; margin-top: 15px; }
+        
+        input { 
+            flex-grow: 1; padding: 12px; border-radius: 8px; 
+            border: 1px solid #ddd; font-size: 16px; outline: none;
         }
         
-        /* Стили галереи */
+        button { 
+            padding: 12px 25px; border-radius: 8px; border: none; 
+            background: #007bff; color: white; font-weight: bold; 
+            cursor: pointer; transition: background 0.2s;
+        }
+        button:hover { background: #0056b3; }
+
         .gallery { 
-            display: grid; 
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); 
-            gap: 20px; 
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); 
+            gap: 15px; 
         }
-        .media-item { 
-            background: #fff; border-radius: 12px; overflow: hidden; 
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1); transition: transform 0.2s;
-        }
-        .media-item:hover { transform: translateY(-5px); }
-        img, video { width: 100%; display: block; aspect-ratio: 1/1; object-fit: cover; background: #000; }
         
-        .loader { text-align: center; padding: 50px; font-style: italic; color: #666; }
-        .error { color: #d93025; background: #f8d7da; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        .media-item { 
+            background: #fff; border-radius: 10px; overflow: hidden; 
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1); 
+        }
+        
+        img, video { width: 100%; aspect-ratio: 1/1; object-fit: cover; display: block; background: #000; }
+        
+        .loader { text-align: center; padding: 40px; color: #666; font-size: 18px; }
+        .error { color: #d93025; background: #f8d7da; padding: 15px; border-radius: 8px; margin-top: 15px; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>Мои альбомы SWSH</h1>
-
-    <div class="controls">
-        <label for="albumSelect">Выберите альбом:</label>
-        <select id="albumSelect">
-            <option value="">Загрузка списка альбомов...</option>
-        </select>
+    <div class="header-box">
+        <h1>Просмотр альбома SWSH</h1>
+        <p>Вставьте ссылку на альбом (например, https://joinswsh.com/a/xyz123)</p>
+        
+        <div class="input-group">
+            <input type="text" id="albumUrl" placeholder="https://joinswsh.com/a/..." />
+            <button onclick="handleLoad()">Загрузить</button>
+        </div>
+        <div id="status"></div>
     </div>
 
-    <div id="status"></div>
     <div id="gallery" class="gallery"></div>
 </div>
 
 <script>
-    const API_KEY = 'priv_5d07e1a9eaec9dcb_cc0d2877fbe8fdd176da63381603074c1f8ce3f5c639eacdb4d7c6d578a29982'; // ВСТАВЬ СВОЙ КЛЮЧ
+    // 1. ТВОЙ КЛЮЧ
+    const API_KEY = 'priv_5d07e1a9eaec9dcb_cc0d2877fbe8fdd176da63381603074c1f8ce3f5c639eacdb4d7c6d578a29982'; 
     const PROXY = 'https://corsproxy.io/?';
-    const BASE_URL = 'https://public-api.joinswsh.com';
 
-    const albumSelect = document.getElementById('albumSelect');
-    const galleryContainer = document.getElementById('gallery');
-    const statusContainer = document.getElementById('status');
+    async function handleLoad() {
+        const urlInput = document.getElementById('albumUrl').value.trim();
+        const status = document.getElementById('status');
+        const gallery = document.getElementById('gallery');
+        
+        status.innerHTML = '';
+        
+        // Извлекаем ID из ссылки
+        // Ссылка может быть: https://joinswsh.com/a/abcdef
+        // Или просто: abcdef
+        const albumId = urlInput.includes('/') ? urlInput.split('/').pop() : urlInput;
 
-    // 1. ПОЛУЧАЕМ СПИСОК АЛЬБОМОВ
-    async function loadAlbums() {
-        const targetUrl = `${BASE_URL}/album/list`;
-        try {
-            const response = await fetch(PROXY + encodeURIComponent(targetUrl), {
-                method: 'GET',
-                headers: { 'x-api-key': API_KEY, 'Accept': 'application/json' }
-            });
-
-            if (!response.ok) throw new Error(`Ошибка списка: ${response.status}`);
-            
-            const data = await response.json();
-            const albums = data.albums || [];
-
-            albumSelect.innerHTML = '<option value="" disabled selected>— Выберите из списка —</option>';
-            
-            albums.forEach(album => {
-                const opt = document.createElement('option');
-                opt.value = album.id;
-                opt.textContent = `${album.name || 'Без названия'} (${album.photoCount || 0})`;
-                albumSelect.appendChild(opt);
-            });
-
-        } catch (err) {
-            showError("Не удалось загрузить альбомы: " + err.message);
+        if (!albumId) {
+            status.innerHTML = '<div class="error">Введите корректную ссылку или ID</div>';
+            return;
         }
-    }
 
-    // 2. ПОЛУЧАЕМ МЕДИА ВЫБРАННОГО АЛЬБОМА
-    async function fetchMedia(albumId) {
-        galleryContainer.innerHTML = '<div class="loader">Открываю альбом...</div>';
-        statusContainer.innerHTML = '';
+        gallery.innerHTML = '<div class="loader">Связываюсь со спутником Swsh... 🚀</div>';
 
-        const targetUrl = `${BASE_URL}/album/getPhotos?albumId=${albumId}`;
+        const targetUrl = `https://public-api.joinswsh.com/album/getPhotos?albumId=${albumId}`;
+        
         try {
             const response = await fetch(PROXY + encodeURIComponent(targetUrl), {
                 method: 'GET',
-                headers: { 'x-api-key': API_KEY, 'Accept': 'application/json' }
+                headers: { 
+                    'x-api-key': API_KEY,
+                    'Accept': 'application/json'
+                }
             });
 
-            if (!response.ok) throw new Error(`Ошибка медиа: ${response.status}`);
+            if (!response.ok) {
+                if (response.status === 404) throw new Error("Альбом не найден (404). Проверь ссылку.");
+                if (response.status === 401) throw new Error("Ошибка API ключа (401).");
+                throw new Error(`Ошибка сервера: ${response.status}`);
+            }
 
             const data = await response.json();
             const items = data.photos || [];
 
             if (items.length === 0) {
-                galleryContainer.innerHTML = '<div class="loader">В этом альбоме пока пусто 🌵</div>';
+                gallery.innerHTML = '<div class="loader">Альбом пуст 📭</div>';
                 return;
             }
 
-            galleryContainer.innerHTML = '';
+            gallery.innerHTML = '';
             items.forEach(item => {
-                const wrapper = document.createElement('div');
-                wrapper.className = 'media-item';
+                const div = document.createElement('div');
+                div.className = 'media-item';
 
-                // Определяем видео или фото
                 if (item.videoUrl) {
-                    wrapper.innerHTML = `
+                    div.innerHTML = `
                         <video controls poster="${item.stableUrl || item.originalUrl}">
                             <source src="${item.videoUrl}" type="video/mp4">
-                        </video>
-                    `;
+                        </video>`;
                 } else {
-                    wrapper.innerHTML = `<img src="${item.stableUrl || item.originalUrl}" loading="lazy">`;
+                    div.innerHTML = `<img src="${item.stableUrl || item.originalUrl}" loading="lazy">`;
                 }
-                galleryContainer.appendChild(wrapper);
+                gallery.appendChild(div);
             });
 
         } catch (err) {
-            showError("Ошибка загрузки контента: " + err.message);
+            status.innerHTML = `<div class="error">${err.message}</div>`;
+            gallery.innerHTML = '';
         }
-    }
-
-    function showError(msg) {
-        statusContainer.innerHTML = `<div class="error">${msg}</div>`;
-        galleryContainer.innerHTML = '';
-    }
-
-    // Слушатель смены альбома
-    albumSelect.addEventListener('change', (e) => {
-        if (e.target.value) {
-            fetchMedia(e.target.value);
-        }
-    });
-
-    // Старт
-    if (API_KEY === 'ВАШ_API_KEY') {
-        showError("Забыл вставить API_KEY в код!");
-    } else {
-        loadAlbums();
     }
 </script>
 
