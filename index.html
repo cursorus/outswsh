@@ -32,60 +32,65 @@
         const API_KEY = 'priv_5d07e1a9eaec9dcb_cc0d2877fbe8fdd176da63381603074c1f8ce3f5c639eacdb4d7c6d578a29982'; // Замените на ваш ключ
         const ALBUM_ID = 'vblzrzpgm83r';   // Замените на ID альбома
 
-        async function fetchAlbumMedia() {
-            const url = `https://public-api.joinswsh.com/album/getPhotos?albumId=${ALBUM_ID}`;
-            const galleryContainer = document.getElementById('gallery');
 
-            try {
-                // Добавляем префикс cors-anywhere (или аналогичный)
-const proxyUrl = 'https://corsproxy.io/?'; 
-const targetUrl = `https://public-api.joinswsh.com/album/getPhotos?albumId=${ALBUM_ID}`;
+async function fetchAlbumMedia() {
+    const galleryContainer = document.getElementById('gallery');
+    
+    // Используем прокси для обхода CORS
+    const targetUrl = `https://public-api.joinswsh.com/album/getPhotos?albumId=${ALBUM_ID}`;
+    const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
 
-const response = await fetch(proxyUrl + encodeURIComponent(targetUrl), {
-    method: 'GET',
-    headers: {
-        'x-api-key': API_KEY,
-        'Content-Type': 'application/json'
-    }
-});
-
-
-                if (!response.ok) throw new Error('Ошибка сети или неверный API ключ');
-
-                const data = await response.json();
-                galleryContainer.innerHTML = ''; // Очищаем лоадер
-
-                data.photos.forEach(item => {
-                    const wrapper = document.createElement('div');
-                    wrapper.className = 'media-item';
-
-                    // Проверяем, является ли объект видео (наличие videoUrl)
-                    if (item.videoUrl) {
-                        wrapper.innerHTML = `
-                            <video controls poster="${item.stableUrl}">
-                                <source src="${item.videoUrl}" type="video/mp4">
-                                Ваш браузер не поддерживает видео.
-                            </video>
-                            <div class="info">Видео</div>
-                        `;
-                    } else {
-                        wrapper.innerHTML = `
-                            <img src="${item.stableUrl}" alt="Photo">
-                            <div class="info">Фото</div>
-                        `;
-                    }
-                    
-                    galleryContainer.appendChild(wrapper);
-                });
-
-            } catch (error) {
-                console.error('Ошибка:', error);
-                galleryContainer.innerHTML = `<p style="color:red">Ошибка загрузки: ${error.message}</p>`;
+    try {
+        const response = await fetch(proxyUrl, {
+            method: 'GET',
+            headers: {
+                'x-api-key': priv_5d07e1a9eaec9dcb_cc0d2877fbe8fdd176da63381603074c1f8ce3f5c639eacdb4d7c6d578a29982, // Проверьте, что в ключе нет лишних пробелов
+                'Accept': 'application/json'
             }
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Статус: ${response.status}. Ответ: ${errorText}`);
         }
 
-        // Запуск при загрузке страницы
-        fetchAlbumMedia();
+        const data = await response.json();
+        
+        // В API Swsh массив может называться photos или media
+        const items = data.photos || data.media || [];
+        
+        if (items.length === 0) {
+            galleryContainer.innerHTML = 'Альбом пуст или не найден.';
+            return;
+        }
+
+        galleryContainer.innerHTML = ''; 
+
+        items.forEach(item => {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'media-item';
+
+            // Если есть videoUrl — это видео
+            if (item.videoUrl) {
+                wrapper.innerHTML = `
+                    <video controls poster="${item.stableUrl || item.originalUrl}">
+                        <source src="${item.videoUrl}" type="video/mp4">
+                    </video>
+                `;
+            } else {
+                wrapper.innerHTML = `<img src="${item.stableUrl || item.originalUrl}" alt="Photo">`;
+            }
+            galleryContainer.appendChild(wrapper);
+        });
+
+    } catch (error) {
+        console.error('Full Error:', error);
+        galleryContainer.innerHTML = `<p style="color:red">Ошибка: ${error.message}</p>`;
+    }
+}
+
+fetchAlbumMedia();
+
     </script>
 </body>
 </html>
