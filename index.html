@@ -1,95 +1,87 @@
 
-
-  <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Фото и видео из альбома swsh</title>
+    <title>SWSH Album Gallery</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 2rem;
+        body { font-family: sans-serif; background: #f4f4f9; padding: 20px; }
+        .gallery { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); 
+            gap: 15px; 
         }
-        .gallery {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 1rem;
+        .media-item { 
+            background: #fff; 
+            border-radius: 8px; 
+            overflow: hidden; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1); 
         }
-        .item {
-            width: 200px;
-        }
-        .item img, .item video {
-            max-width: 100%;
-            border-radius: 8px;
-        }
+        img, video { width: 100%; display: block; height: auto; }
+        .info { padding: 10px; font-size: 12px; color: #666; }
     </style>
 </head>
 <body>
 
-    <h1>Фото и видео из альбома</h1>
-
-    <label>
-        Album ID:
-        <input type="text" id="albumId" placeholder="Введите albumId">
-    </label>
-    <button id="loadBtn">Загрузить</button>
-
-    <div class="gallery" id="gallery"></div>
+    <h1>Медиа из альбома SWSH</h1>
+    <div id="gallery" class="gallery">Загрузка...</div>
 
     <script>
-        const API_BASE = "https://public-api.joinswsh.com/album/getPhotos";
+        // НАСТРОЙКИ API
+        const API_KEY = 'ВАШ_API_KEY'; // Замените на ваш ключ
+        const ALBUM_ID = 'ID_АЛЬБОМА';   // Замените на ID альбома
 
-        document.getElementById("loadBtn").addEventListener("click", async () => {
-            const albumId = document.getElementById("albumId").value.trim();
-            if (!albumId) {
-                alert("Введите albumId");
-                return;
-            }
-
-            const gallery = document.getElementById("gallery");
-            gallery.innerHTML = "";
+        async function fetchAlbumMedia() {
+            const url = `https://public-api.joinswsh.com/album/getPhotos?albumId=${ALBUM_ID}`;
+            const galleryContainer = document.getElementById('gallery');
 
             try {
-                const res = await fetch(`${API_BASE}?albumId=${encodeURIComponent(albumId)}`, {
+                const response = await fetch(url, {
+                    method: 'GET',
                     headers: {
-                        "x-api-key": "priv_5d07e1a9eaec9dcb_cc0d2877fbe8fdd176da63381603074c1f8ce3f5c639eacdb4d7c6d578a29982" // ⚠️ не храните ключ в проде!
+                        'x-api-key': API_KEY,
+                        'Content-Type': 'application/json'
                     }
                 });
 
-                if (!res.ok) {
-                    throw new Error("Не удалось получить данные");
-                }
+                if (!response.ok) throw new Error('Ошибка сети или неверный API ключ');
 
-                const json = await res.json();
+                const data = await response.json();
+                galleryContainer.innerHTML = ''; // Очищаем лоадер
 
-                json.data.forEach(item => {
-                    const div = document.createElement("div");
-                    div.className = "item";
+                data.photos.forEach(item => {
+                    const wrapper = document.createElement('div');
+                    wrapper.className = 'media-item';
 
+                    // Проверяем, является ли объект видео (наличие videoUrl)
                     if (item.videoUrl) {
-                        // Видео
-                        const vid = document.createElement("video");
-                        vid.controls = true;
-                        vid.src = item.videoUrl;
-                        div.appendChild(vid);
+                        wrapper.innerHTML = `
+                            <video controls poster="${item.stableUrl}">
+                                <source src="${item.videoUrl}" type="video/mp4">
+                                Ваш браузер не поддерживает видео.
+                            </video>
+                            <div class="info">Видео</div>
+                        `;
                     } else {
-                        // Фото
-                        const img = document.createElement("img");
-                        img.src = item.stableUrl;
-                        img.alt = "Фото";
-                        div.appendChild(img);
+                        wrapper.innerHTML = `
+                            <img src="${item.stableUrl}" alt="Photo">
+                            <div class="info">Фото</div>
+                        `;
                     }
-
-                    gallery.appendChild(div);
+                    
+                    galleryContainer.appendChild(wrapper);
                 });
 
-            } catch (e) {
-                console.error(e);
-                alert("Ошибка при загрузке");
+            } catch (error) {
+                console.error('Ошибка:', error);
+                galleryContainer.innerHTML = `<p style="color:red">Ошибка загрузки: ${error.message}</p>`;
             }
-        });
-    </script>
+        }
 
+        // Запуск при загрузке страницы
+        fetchAlbumMedia();
+    </script>
 </body>
 </html>
+
