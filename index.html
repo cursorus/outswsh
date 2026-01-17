@@ -37,13 +37,18 @@
             const galleryContainer = document.getElementById('gallery');
 
             try {
-                const response = await fetch(url, {
-                    method: 'GET',
-                    headers: {
-                        'x-api-key': API_KEY,
-                        'Content-Type': 'application/json'
-                    }
-                });
+                // Добавляем префикс cors-anywhere (или аналогичный)
+const proxyUrl = 'https://corsproxy.io/?'; 
+const targetUrl = `https://public-api.joinswsh.com/album/getPhotos?albumId=${ALBUM_ID}`;
+
+const response = await fetch(proxyUrl + encodeURIComponent(targetUrl), {
+    method: 'GET',
+    headers: {
+        'x-api-key': API_KEY,
+        'Content-Type': 'application/json'
+    }
+});
+
 
                 if (!response.ok) throw new Error('Ошибка сети или неверный API ключ');
 
